@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 
+from app.api import students
+
+
 @asynccontextmanager
 async def on_startup(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -39,3 +42,5 @@ async def health_check():
         "status": "ok",
         "version": app.version,
     }
+
+app.include_router(students.router)
