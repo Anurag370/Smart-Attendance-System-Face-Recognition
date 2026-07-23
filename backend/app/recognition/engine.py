@@ -37,6 +37,12 @@ class FaceEngine:
             raise ValueError(f"Multiple faces detected: {len(faces)}")
         
         return faces[0].embedding
+
+    def embedding_to_bytes(self, embedding:np.ndarray)->bytes:
+        return embedding.astype(np.float32).tobytes()
+
+    def embedding_from_bytes(self, data:bytes)->np.ndarray:
+        return np.frombuffer(data, dtype=np.float32)
     
 
 @lru_cache

@@ -1,5 +1,6 @@
 from sqlalchemy import Integer, Column, String, Boolean, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class Student(Base):
@@ -15,3 +16,9 @@ class Student(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    embeddings = relationship(
+    "Embedding",
+    back_populates="student",
+    cascade="all, delete-orphan"
+)

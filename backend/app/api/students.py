@@ -11,6 +11,7 @@ from app.schemas.student import StudentCreate, StudentResponse
 from app.repositories.student_repo import StudentRepository
 from app.recognition.engine import get_face_engine, FaceEngine
 from app.utils.image_utils import decode_image, is_blurry, crop_face
+from app.repositories.embedding_repo import EmbeddingRepository
 
 router = APIRouter(prefix="/api/v1/students", tags=["Students"])
 
@@ -92,10 +93,26 @@ async def register_student(
             "message":f"Faces detection score is low: {face.det_score:.2f}"
         })
     
+    embedding = engine.get_embedding(img)
+    embedding_bytes = engine.embedding_to_bytes(embedding)
+
+    existing_embeddings = EmbeddingRepository(db).get_all_embeddings()
+    for existing in existing_embeddings:
+        stored_emb = engine.embedding_from_bytes(existing['embedding_bytes'])
+        similarity = float(np.dot(embedding, stored_emb))
+
+        if similarity > 0.6:
+            existing_student = repo.get_by_id(existing['student_id'])
+            raise HTTPException(409, detail={
+                "error":"Duplicate Face",
+                "message":f"This face matches existing student: {existing_student.student_id} ({existing_student.first_name} {existing_student.last_name})" # type: ignore
+            })
     os.makedirs("data/faces", exist_ok=True)
     filename = f"{student_id}_{uuid.uuid4().hex[:8]}.jpg"
     filepath = os.path.join("data", "faces", filename)
     cv.imwrite(filepath, face_region)
+
+
 
     db_student = repo.create({
         "student_id": student_data.student_id,
@@ -106,6 +123,11 @@ async def register_student(
         "face_image_path": filepath
     })
 
+    EmbeddingRepository(db).create(
+        student_id = db_student.id, # type: ignore
+        embedding_bytes=embedding_bytes,
+        model_name = settings.model_name
+    )
     return {
         "id": db_student.id,
         "student_id": db_student.student_id,
